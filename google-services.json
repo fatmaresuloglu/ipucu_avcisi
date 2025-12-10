@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "161240423804",
+    "project_id": "ipucuavcisiapp",
+    "storage_bucket": "ipucuavcisiapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:161240423804:android:096a5c02b51de05ebed8f9",
+        "android_client_info": {
+          "package_name": "com.ipucuavcisi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqQ3qTPWXN5NwEn8c4SVbexMojej88xpI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
