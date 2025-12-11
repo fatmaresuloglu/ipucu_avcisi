@@ -1,32 +1,30 @@
+// lib/models/hint_item.dart
+
 class HintItem {
   final String id;
-  final String category; // Örn: 'Hayvan', 'Şehir', 'Eşya'
-  final String name; // Tahmin edilecek kelime (Örn: "ZÜRAFA")
-  final List<String> hints; // İpucu listesi (5 adet)
-  final bool isPro; // Ücretli içeriğe ait olup olmadığı
+  final String category;
+  final List<String> hints;
+  final String
+  answer; // <-- YENİ ALAN: Doğru cevabın kendisi (Kelime veya Resim URL'si)
 
   HintItem({
     required this.id,
     required this.category,
-    required this.name,
     required this.hints,
-    this.isPro = false,
+    required this.answer, // <-- CONSTRUCTOR'a eklendi
   });
 
-  // Firestore'dan gelen veriyi (Map) Dart objesine çeviren factory metot
+  // Factory metodu (Firebase Firestore'dan veri okumak için)
   factory HintItem.fromFirestore(Map<String, dynamic> data, String id) {
     return HintItem(
       id: id,
-      category: data['category'] ?? 'Genel',
-      name: data['name'] ?? 'Bilinmiyor',
-      // Firestore'dan List<dynamic> olarak gelebilir, List<String>'e çeviriyoruz
-      hints: List<String>.from(data['hints'] ?? []),
-      isPro: data['isPro'] ?? false,
+      category: data['category'] as String? ?? 'Bilinmiyor',
+      hints:
+          (data['hints'] as List?)?.map((item) => item.toString()).toList() ??
+          [],
+      answer:
+          data['answer'] as String? ??
+          'Cevap Bulunamadı', // <-- Firestore'dan okundu
     );
-  }
-
-  // Dart objesini Firestore'a göndermek için Map'e çeviren metot
-  Map<String, dynamic> toFirestore() {
-    return {'category': category, 'name': name, 'hints': hints, 'isPro': isPro};
   }
 }

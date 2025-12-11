@@ -3,21 +3,23 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// import 'firebase_options.dart'; // Bu dosya Firebase CLI ile oluşur
+
+// Firebase CLI ile oluşturulan yapılandırma dosyasını import ediyoruz
+import 'firebase_options.dart';
+
+// Yeni başlangıç ekranımızı import ediyoruz
+import 'screens/category_selection_screen.dart';
 
 void main() async {
-  // Firebase ve diğer native kodların çalışması için gerekli
+  // Firebase başlatma için gereklidir
   WidgetsFlutterBinding.ensureInitialized();
 
-  // TODO: Eğer Firebase CLI ile yapılandırma yaptıysanız bu kodu kullanın.
-  // await Firebase.initializeApp(
-  //   options: DefaultFirebaseOptions.currentPlatform,
-  // );
+  // Firebase'i platforma özel seçeneklerle başlat
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions
+        .currentPlatform, // Bu, web/android/vb. için ayarları kullanır
+  );
 
-  // Basit kurulum için:
-  await Firebase.initializeApp(); // Firebase'i başlatıyoruz
-
-  // Riverpod için uygulamayı ProviderScope ile sarmalıyoruz
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -29,20 +31,15 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'İpucu Avcısı',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'Nunito', // Örnek çocuk dostu font
+        // Tema ayarlarınız
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+        ), // Tema rengi
+        fontFamily: 'Nunito',
+        useMaterial3: true,
       ),
-      home: const PlaceholderScreen(), // İlk ekranımızı buraya koyacağız
+      // Uygulamanın başlangıç ekranı (CategorySelectionScreen)
+      home: const CategorySelectionScreen(),
     );
-  }
-}
-
-// Şimdilik boş bir yer tutucu ekran
-class PlaceholderScreen extends StatelessWidget {
-  const PlaceholderScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text('İpucu Avcısı Başlıyor!')));
   }
 }
