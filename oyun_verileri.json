@@ -1,0 +1,86 @@
+{
+  "hayvanlar": {
+    "kedi1": {
+      "category": "Hayvan",
+      "title": "Kedi",
+      "answer": "https://ornek.com/kedi.jpg",
+      "hints": ["Miyavlar", "4 ayaklı", "Evcil"]
+    },
+    "kopek1": {
+      "category": "Hayvan",
+      "title": "Köpek",
+      "answer": "https://ornek.com/kopek.jpg",
+      "hints": ["Havlar", "Sadık", "Bekçi"]
+    },
+    "at1": {
+      "category": "Hayvan",
+      "title": "At",
+      "answer": "https://ornek.com/at.jpg",
+      "hints": ["Hızlı koşar", "Yeleleri vardır", "Büyük"]
+    },
+    "fil1": {
+      "category": "Hayvan",
+      "title": "Fil",
+      "answer": "https://ornek.com/fil.jpg",
+      "hints": ["Çok büyük", "Hortumu var", "Afrika'da yaşar"]
+    },
+    "balik1": {
+      "category": "Hayvan",
+      "title": "Balık",
+      "answer": "https://ornek.com/balik.jpg",
+      "hints": ["Yüzgeçleri var", "Suda yaşar", "Pul"]
+    }
+  },
+  "sehirler": {
+    "ankara1": {
+      "category": "Şehir",
+      "title": "Ankara",
+      "answer": "Ankara",
+      "hints": ["Başkent", "Anıtkabir", "Soğuk"]
+    },
+    "istanbul1": {
+      "category": "Şehir",
+      "title": "İstanbul",
+      "answer": "İstanbul",
+      "hints": ["Boğaz", "Kıtalar arası", "Kalabalık"]
+    },
+    "izmir1": {
+      "category": "Şehir",
+      "title": "İzmir",
+      "answer": "İzmir",
+      "hints": ["Ege", "Deniz kenarı", "Gündoğdu Meydanı"]
+    },
+    "antalya1": {
+      "category": "Şehir",
+      "title": "Antalya",
+      "answer": "Antalya",
+      "hints": ["Yazlık", "Turistik", "Sıcak"]
+    }
+  },
+  "esyalar": {
+    "masa1": {
+      "category": "Eşya",
+      "title": "Masa",
+      "answer": "https://ornek.com/masa.jpg",
+      "hints": ["Üzerine eşya konur", "4 ayağı var", "Ahşap olabilir"]
+    },
+    "sandalye1": {
+      "category": "Eşya",
+      "title": "Sandalye",
+      "answer": "https://ornek.com/sandalye.jpg",
+      "hints": ["Oturmaya yarar", "Arkası var", "Genellikle masayla kullanılır"]
+    },
+    "kitap1": {
+      "category": "Eşya",
+      "title": "Kitap",
+      "answer": "https://ornek.com/kitap.jpg",
+      "hints": ["Okunur", "Bilgi kaynağı", "Kütüphane"]
+    },
+    "telefon1": {
+      "category": "Eşya",
+      "title": "Telefon",
+      "answer": "https://ornek.com/telefon.jpg",
+      "hints": ["Konuşmaya yarar", "Cepte taşınır", "Şarj edilir"]
+    }
+  }
+}

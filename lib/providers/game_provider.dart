@@ -3,6 +3,7 @@
 // ignore_for_file: avoid_print
 
 import 'dart:async';
+import 'package:flutter/foundation.dart'; // debugPrint için
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/game_state.dart';
 import '../models/hint_item.dart';
@@ -17,7 +18,7 @@ class GameNotifier extends StateNotifier<GameState> {
   final Ref ref;
   Timer? _timer;
   List<HintItem> _allItems = []; // Kategorinin tüm kelimeleri
-  HintItem? currentItem; // Şu anki oynanan kelime
+  // HintItem? currentItem; // 🛑 BU SATIR SİLİNDİ, artık state içinde.
 
   // Constructor
   GameNotifier(this.ref, String category)
@@ -26,23 +27,30 @@ class GameNotifier extends StateNotifier<GameState> {
   }
 
   // Kategorinin tüm kelimelerini yükle ve oyunu başlat
-  void _initializeGame(String category) async {
-    final items = ref.read(itemsByCategoryProvider(category));
+  void _initializeGame(String category) {
+    // StreamProvider'dan gelen veriyi AsyncValue olarak okuyoruz
+    final itemsAsync = ref.read(itemsByCategoryProvider(category));
+
+    // Verinin yüklenip yüklenmediğini kontrol edip liste tipine dönüştürüyoruz.
+    final List<HintItem> items = itemsAsync.value ?? [];
 
     _allItems = items;
 
+    debugPrint(
+      'Firebase\'den gelen kelime sayısı ($category): ${_allItems.length}',
+    );
+
     // Eğer veri yüklendiyse ve liste boş değilse
     if (_allItems.isNotEmpty) {
-      _selectNextItem();
-      _startTimer();
+      _selectNextItem(isInitial: true); // İlk başlatma için true gönder
+      _startTimer(); // Zamanlayıcıyı başlat
     } else {
-      print(
-        'Hata: Seçilen kategoriye (${category}) ait veri yüklenemedi veya bulunamadı.',
+      debugPrint(
+        'Hata: Seçilen kategoriye ($category) ait veri yüklenemedi veya bulunamadı.',
       );
     }
   }
 
-  // YENİ METOT: Cevabı ortaya çıkarır (Kartı çevirme anı)
   void revealAnswer() {
     // Cevap zaten görünürse tekrar çağırma
     if (state.isAnswerRevealed) return;
@@ -53,67 +61,73 @@ class GameNotifier extends StateNotifier<GameState> {
   }
 
   void _startTimer() {
+    // Eğer süre zaten 0 ise veya oyun bitmişse başlatma
+    if (state.timeRemaining <= 0) return;
+
     _timer?.cancel(); // Mevcut zamanlayıcı varsa iptal et
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (state.timeRemaining > 0) {
         state = state.copyWith(timeRemaining: state.timeRemaining - 1);
       } else {
         _timer?.cancel();
-        print('Oyun bitti! Skor: ${state.score}');
+        debugPrint('Zaman bitti! Skor: ${state.score}');
+        // Oyun bitti, burada ek bir bitiş state'ine geçilebilir.
       }
     });
   }
 
   // Kelime seçimini ve kart sıfırlama/ilerletme mantığını birleştirir
-  void _selectNextItem() {
-    // Önceki öğe ID'sini oynanmış listesine ekle
-    if (currentItem != null) {
+  void _selectNextItem({bool isInitial = false}) {
+    // 1. Önceki öğe ID'sini oynanmış listesine ekle (İlk başlatma değilse)
+    if (!isInitial && state.currentItem != null) {
       state = state.copyWith(
-        playedItemIds: [...state.playedItemIds, currentItem!.id],
-        isAnswerRevealed: false, // <-- KART DURUMUNU SIFIRLA
+        playedItemIds: [...state.playedItemIds, state.currentItem!.id],
+        isAnswerRevealed: false, // KART DURUMUNU SIFIRLA
       );
     }
 
-    // Oynanmamış kelimeleri filtrele
+    // 2. Oynanmamış kelimeleri filtrele
     final availableItems = _allItems
         .where((item) => !state.playedItemIds.contains(item.id))
         .toList();
 
     if (availableItems.isEmpty) {
-      currentItem = null;
+      // 💡 state.currentItem'ı null yap
+      state = state.copyWith(currentItem: null);
       _timer?.cancel();
-      print('Tüm kelimeler oynandı! Skor: ${state.score}');
+      debugPrint('Tüm kelimeler oynandı! Skor: ${state.score}');
       return;
     }
 
-    // Rastgele bir kelime seç
+    // 3. Rastgele bir kelime seç
     final random = Random();
-    currentItem = availableItems[random.nextInt(availableItems.length)];
+    final nextItem = availableItems[random.nextInt(availableItems.length)];
 
-    // Yeni kelime seçildiyse ve süre bitmediyse zamanlayıcıyı başlat
-    if (currentItem != null &&
-        state.timeRemaining > 0 &&
-        state.isAnswerRevealed == false) {
+    // 💡 currentItem değişkeni yerine state'i güncelleyin
+    state = state.copyWith(currentItem: nextItem);
+
+    // Yeni kelime seçildi ve oyun hala oynanıyorsa zamanlayıcıyı başlat
+    if (!isInitial && state.timeRemaining > 0) {
       _startTimer();
     }
   }
 
   void markCorrect() {
-    // YENİ KONTROL: Sadece cevap göründüyse (kart çevrildiyse) skorlama yap
-    if (currentItem == null || !state.isAnswerRevealed) return;
+    // Kontrol: Sadece cevap göründüyse skorlama yap
+    if (state.currentItem == null || !state.isAnswerRevealed) return;
 
     // Skoru artır
     state = state.copyWith(score: state.score + 1);
 
-    // Yeni kelimeyi seç ve kartı sıfırla (bu işlem _selectNextItem içinde yapılıyor)
+    // Yeni kelimeyi seç ve kartı sıfırla
     _selectNextItem();
   }
 
   void markSkip() {
-    // YENİ KONTROL: Sadece cevap göründüyse (kart çevrildiyse) pas geç
-    if (currentItem == null || !state.isAnswerRevealed) return;
+    // Kontrol: Sadece cevap göründüyse pas geç
+    if (state.currentItem == null || !state.isAnswerRevealed) return;
 
-    // Pas sayısını artır
+    // Pas sayısını artır (isteğe bağlı)
     state = state.copyWith(skipCount: state.skipCount + 1);
 
     // Yeni kelimeyi seç ve kartı sıfırla

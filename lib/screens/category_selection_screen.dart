@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/item_provider.dart'; // Daha önce oluşturduğumuz provider dosyası
-//import '../models/hint_item.dart'; // HintItem modelimiz
+import '../providers/item_provider.dart'; // allCategoriesProvider burada tanımlı
 import 'game_screen.dart';
 
 class CategorySelectionScreen extends ConsumerWidget {
@@ -9,54 +8,42 @@ class CategorySelectionScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // allItemsProvider'ı dinliyoruz. Bu, Firebase'den veriyi çeker.
-    final allItemsAsync = ref.watch(allItemsProvider);
+    // allCategoriesProvider'ı dinliyoruz.
+    // Bu provider artık item_provider.dart içinde sabit listeyi döndürüyor.
+    final categories = ref.watch(allCategoriesProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('İpucu Avcısı: Kategori Seç'),
         backgroundColor: Colors.deepPurple,
       ),
-      body: allItemsAsync.when(
-        // Veri başarıyla yüklendiğinde
-        data: (items) {
-          // Yüklenen tüm HintItem'lardan sadece benzersiz kategori adlarını al
-          final categories = items.map((e) => e.category).toSet().toList();
-
-          if (categories.isEmpty) {
-            return const Center(
-              child: Text('Henüz veri bulunmuyor. Firebase\'e veri ekleyin.'),
-            );
-          }
-
-          return GridView.builder(
-            padding: const EdgeInsets.all(20),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2, // Yan yana 2 kart
-              crossAxisSpacing: 15,
-              mainAxisSpacing: 15,
-              childAspectRatio: 1.2, // Kart oranını ayarla
+      body: categories.isEmpty
+          ? const Center(
+              // Sabit listeyi kullandığımız için burası sadece liste boşsa görünür.
+              child: Text(
+                'Kategori verisi bulunmuyor. Lütfen item_provider dosyasını kontrol edin.',
+                textAlign: TextAlign.center,
+              ),
+            )
+          : GridView.builder(
+              padding: const EdgeInsets.all(20),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2, // Yan yana 2 kart
+                crossAxisSpacing: 15,
+                mainAxisSpacing: 15,
+                childAspectRatio: 1.2, // Kart oranını ayarla
+              ),
+              itemCount: categories.length,
+              itemBuilder: (context, index) {
+                final category = categories[index];
+                return CategoryCard(category: category);
+              },
             ),
-            itemCount: categories.length,
-            itemBuilder: (context, index) {
-              final category = categories[index];
-              return CategoryCard(category: category);
-            },
-          );
-        },
-        // Veri yüklenirken
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Colors.deepPurple),
-        ),
-        // Hata oluştuğunda
-        error: (err, stack) =>
-            Center(child: Text('Veri yüklenirken hata oluştu: $err')),
-      ),
     );
   }
 }
 
-// Kategori Seçim Kartı Bileşeni
+// Kategori Seçim Kartı Bileşeni (Değişmedi)
 class CategoryCard extends StatelessWidget {
   final String category;
 

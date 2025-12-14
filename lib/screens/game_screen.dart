@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/game_provider.dart';
 import 'score_screen.dart';
 import '../models/hint_item.dart';
+import '../models/game_state.dart';
 
 class GameScreen extends ConsumerWidget {
   final String category;
@@ -13,11 +14,14 @@ class GameScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // GameNotifier'ı izle (Oyun durumu)
+    // 💡 gameNotifierProvider'ı izle (state değiştiğinde rebuild olur)
     final gameState = ref.watch(gameNotifierProvider(category));
-    // GameNotifier'ın kendisini al (Metotları çağırmak için)
+
+    // Metotları çağırmak için controller'ı oku
     final gameController = ref.read(gameNotifierProvider(category).notifier);
-    final currentItem = gameController.currentItem;
+
+    // 💡 currentItem'ı doğrudan izlenen state'ten al
+    final currentItem = gameState.currentItem;
 
     // Oyun bitti mi kontrolü
     final isTimeUpOrFinished =
@@ -43,10 +47,10 @@ class GameScreen extends ConsumerWidget {
 
     // Eğer kelime yüklenmediyse
     if (currentItem == null) {
-      return const Scaffold(body: Center(child: Text('Kelime Yükleniyor...')));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // Ekranda gösterilecek ana kartı belirle: Cevap görünürse Arka Kartı, aksi halde Ön Kartı göster.
+    // Ekranda gösterilecek ana kartı belirle
     Widget currentCard = gameState.isAnswerRevealed
         ? _buildAnswerCard(context, currentItem, gameController)
         : _buildHintCard(context, currentItem, gameController);
@@ -64,38 +68,34 @@ class GameScreen extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: AnimatedSwitcher(
-                    // <-- KART ÇEVİRME ANİMASYONUNU BAŞLATAN WIDGET
                     duration: const Duration(milliseconds: 600),
-                    transitionBuilder: (Widget child, Animation<double> animation) {
-                      // 3D döndürme efekti için Transform kullanıyoruz.
-                      final rotate = Tween(
-                        begin: 0.0,
-                        end: 1.0,
-                      ).animate(animation);
-                      return AnimatedBuilder(
-                        animation: rotate,
-                        child: child,
-                        builder: (BuildContext context, Widget? child) {
-                          final double rotationAngle =
-                              rotate.value *
-                              3.14159; // 0'dan Pi'ye (180 derece)
-
-                          // Döndürme sırasında 90 dereceden sonra kartı değiştiriyoruz
-                          final isBack = rotationAngle > 3.14159 / 2;
-
-                          return Transform(
-                            alignment: Alignment.center,
-                            // isBack ise 180 derece (Pi) ekleyerek ters çevirme mantığı
-                            transform: Matrix4.rotationY(
-                              isBack ? rotationAngle - 3.14159 : rotationAngle,
-                            ),
+                    transitionBuilder:
+                        (Widget child, Animation<double> animation) {
+                          final rotate = Tween(
+                            begin: 0.0,
+                            end: 1.0,
+                          ).animate(animation);
+                          return AnimatedBuilder(
+                            animation: rotate,
                             child: child,
+                            builder: (BuildContext context, Widget? child) {
+                              final double rotationAngle =
+                                  rotate.value * 3.14159;
+                              final bool isBack = rotationAngle > 3.14159 / 2;
+
+                              return Transform(
+                                alignment: Alignment.center,
+                                transform: Matrix4.rotationY(
+                                  isBack
+                                      ? rotationAngle - 3.14159
+                                      : rotationAngle,
+                                ),
+                                child: child,
+                              );
+                            },
                           );
                         },
-                      );
-                    },
-                    child:
-                        currentCard, // Cevap kartını veya İpucu kartını göster
+                    child: currentCard,
                   ),
                 ),
               ),
@@ -105,11 +105,8 @@ class GameScreen extends ConsumerWidget {
             if (gameState.isAnswerRevealed)
               _buildActionButtons(context, gameController, isTimeUpOrFinished),
 
-            // Cevap gizliyken boşluk bırak (UI'ın zıplamasını engellemek için)
-            if (!gameState.isAnswerRevealed)
-              const SizedBox(
-                height: 120 + 20,
-              ), // Buton yüksekliği + padding kadar boşluk
+            // Cevap gizliyken UI zıplamasını engellemek için boşluk
+            if (!gameState.isAnswerRevealed) const SizedBox(height: 120 + 20),
           ],
         ),
       ),
@@ -123,9 +120,8 @@ class GameScreen extends ConsumerWidget {
     GameNotifier controller,
   ) {
     return InkWell(
-      key: const ValueKey(1), // AnimatedSwitcher için anahtar
+      key: ValueKey(currentItem.id),
       onTap: () {
-        // Kartı çevir ve cevabı ortaya çıkar (Süreyi durdurur)
         controller.revealAnswer();
       },
       child: Card(
@@ -133,7 +129,7 @@ class GameScreen extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         child: Container(
           width: double.infinity,
-          height: 350, // Sabit yükseklik verilebilir
+          height: 350,
           padding: const EdgeInsets.all(25),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(15),
@@ -168,17 +164,13 @@ class GameScreen extends ConsumerWidget {
     HintItem currentItem,
     GameNotifier controller,
   ) {
-    // Kategoriye göre Cevap içeriğini belirle
     Widget answerContent;
-
-    // Resim URL'si yerine geçici olarak sadece text gösterecek mantık:
-    // **NOT:** Eğer resim URL'leri veritabanına eklenirse, bu kod çalışır.
     final String answerValue = currentItem.answer;
+    final bool isImageUrl = answerValue.startsWith('http');
 
     if (currentItem.category == 'Şehir') {
-      // Şehir ise yazı olarak göster
       answerContent = Text(
-        answerValue,
+        currentItem.title,
         textAlign: TextAlign.center,
         style: const TextStyle(
           fontSize: 32,
@@ -187,23 +179,44 @@ class GameScreen extends ConsumerWidget {
         ),
       );
     } else {
-      // Hayvan/Eşya ise Resim URL'si (varsayılıyor) veya Metin
-      // Şimdilik sadece metin gösterelim. Resim URL'lerini eklediğinizde Image.network'ü aktif edebilirsiniz.
-
-      // Resim Eklemek İçin Bu kısmı Kullanın:
-      // answerContent = Image.network(
-      //   answerValue, // Resim URL'si
-      //   height: 150,
-      //   fit: BoxFit.contain,
-      // );
-
-      // Geçici Metin Gösterimi:
       answerContent = Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.image, size: 40, color: Colors.white70),
+          // 1. RESİM KISMI
+          if (isImageUrl)
+            Image.network(
+              answerValue,
+              height: 150,
+              fit: BoxFit.contain,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const SizedBox(
+                  height: 150,
+                  child: Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(
+                  Icons.broken_image,
+                  size: 50,
+                  color: Colors.red,
+                );
+              },
+            )
+          else
+            const Icon(
+              Icons.image_not_supported,
+              size: 50,
+              color: Colors.white70,
+            ),
+
+          const SizedBox(height: 20),
+
+          // 2. YAZI KISMI (Kelimenin Adı)
           Text(
-            answerValue,
+            currentItem.title,
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 28,
@@ -211,16 +224,12 @@ class GameScreen extends ConsumerWidget {
               color: Colors.white,
             ),
           ),
-          const Text(
-            ' (Resim Gelecek)',
-            style: TextStyle(color: Colors.white54),
-          ),
         ],
       );
     }
 
     return Card(
-      key: const ValueKey(2), // AnimatedSwitcher için anahtar
+      key: ValueKey(currentItem.id),
       elevation: 8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Container(
@@ -238,18 +247,18 @@ class GameScreen extends ConsumerWidget {
               'CEVAP',
               style: TextStyle(fontSize: 20, color: Colors.white70),
             ),
-            Expanded(child: Center(child: answerContent)), // Cevap içeriği
-            // Butonlar bu kartın dışında, ana Column'da gösterilecek.
+            Expanded(child: Center(child: answerContent)),
           ],
         ),
       ),
     );
   }
 
-  // --- Yardımcı Widget'lar (Daha önce yazdığınız kodlar) ---
+  // -----------------------------------------------------------------
+  // 💡 EKSİK YARDIMCI METOTLARIN TANIMLARI
+  // -----------------------------------------------------------------
 
   Widget _buildHeader(int time, int score) {
-    // ... (Mevcut _buildHeader kodunuzu buraya yapıştırın)
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
@@ -325,7 +334,6 @@ class GameScreen extends ConsumerWidget {
     GameNotifier controller,
     bool isGameOver,
   ) {
-    // Pas Geç ve Doğru Butonları. Yanlış butonu yerine Pas Geç kullanılmıştır.
     return Padding(
       padding: const EdgeInsets.only(
         bottom: 20.0,

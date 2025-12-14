@@ -1,38 +1,45 @@
 // lib/models/game_state.dart
 
+import 'hint_item.dart';
+
 class GameState {
-  final String category; // Oynanan kategori
-  final int score; // Doğru tahmin sayısı
-  final int skipCount; // Pas geçme sayısı
-  final int timeRemaining; // Kalan saniye
-  final List<String> playedItemIds; // Oynanmış kelimelerin ID'leri
-  final bool isAnswerRevealed; // <-- YENİ ALAN: Cevabın görünüp görünmediği
+  final String category;
+  final int timeRemaining;
+  final int score;
+  final int skipCount;
+  final List<String> playedItemIds;
+  final bool isAnswerRevealed;
+
+  // 💡 YENİ ALAN: Şu anki kelimeyi state içinde taşıyoruz
+  final HintItem? currentItem;
 
   const GameState({
     required this.category,
+    this.timeRemaining = 30, // Varsayılan başlangıç süresi
     this.score = 0,
     this.skipCount = 0,
-    this.timeRemaining = 60, // Başlangıç süresi 60 saniye
     this.playedItemIds = const [],
-    this.isAnswerRevealed = false, // <-- Varsayılan olarak gizli
+    this.isAnswerRevealed = false,
+    this.currentItem, // 💡 Constructor'a ekle
   });
 
-  // Durumu güncellemek için kopyalama metodu (Riverpod için kritik)
   GameState copyWith({
+    String? category,
+    int? timeRemaining,
     int? score,
     int? skipCount,
-    int? timeRemaining,
     List<String>? playedItemIds,
-    bool? isAnswerRevealed, // <-- YENİ ALAN
+    bool? isAnswerRevealed,
+    HintItem? currentItem, // 💡 copyWith metoduna ekle
   }) {
     return GameState(
-      category: category,
+      category: category ?? this.category,
+      timeRemaining: timeRemaining ?? this.timeRemaining,
       score: score ?? this.score,
       skipCount: skipCount ?? this.skipCount,
-      timeRemaining: timeRemaining ?? this.timeRemaining,
       playedItemIds: playedItemIds ?? this.playedItemIds,
-      isAnswerRevealed:
-          isAnswerRevealed ?? this.isAnswerRevealed, // <-- YENİ KOPYALAMA
+      isAnswerRevealed: isAnswerRevealed ?? this.isAnswerRevealed,
+      currentItem: currentItem ?? this.currentItem,
     );
   }
 }

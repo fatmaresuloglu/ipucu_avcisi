@@ -1,82 +1,93 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/foundation.dart';
-import '../models/hint_item.dart'; // HintItem modelinizi doğru yoluyla import edin
+import 'package:flutter/foundation.dart'; // debugPrint için
+import '../models/hint_item.dart';
 
 // ====================================================
-// 1. ITEMS REPOSITORY (Veritabanı İşlemleri)
+// 1. YARDIMCI FONKSİYON: Kategoriye göre koleksiyon adını eşleştirme
 // ====================================================
 
-class ItemRepository {
-  // Firebase Firestore'un bir örneğini alıyoruz.
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-
-  // Tüm HintItem'ları (tahmin edilecek kelimeleri) Firestore'dan çeker
-  Future<List<HintItem>> fetchAllItems() async {
-    try {
-      // 'items' koleksiyonundan tüm belgeleri çekiyoruz.
-      final snapshot = await _db.collection('items').get();
-
-      // Çekilen her bir belgeyi HintItem modeline dönüştürüyoruz.
-      return snapshot.docs.map((doc) {
-        return HintItem.fromFirestore(doc.data(), doc.id);
-      }).toList();
-    } catch (e) {
-      // Hata yönetimi (Gerçek uygulamada loglama yapılmalıdır)
-      debugPrint('Veri çekme hatası: $e');
-      return []; // Hata durumunda boş bir liste döndür
-    }
+// Kategori adını (Örn: 'Hayvan') Firebase'deki koleksiyon adıyla (Örn: 'hayvanlar') eşleştirir.
+String _getCollectionName(String category) {
+  switch (category) {
+    case 'Hayvan':
+      return 'hayvanlar';
+    case 'Şehir':
+      return 'sehirler';
+    case 'Eşya':
+      return 'esyalar';
+    default:
+      // Varsayılan koleksiyon (eski yapıyla uyumluluk veya hata durumları için)
+      return 'items';
   }
 }
 
 // ====================================================
-// 2. RIVERPOD PROVIDERS (Durum Yönetimi)
+// 2. ITEM REPOSITORY (Veritabanı İşlemleri)
 // ====================================================
 
-// a) ItemRepository sınıfını sağlayan Provider.
-// Bu, diğer sağlayıcıların veritabanı mantığına erişmesini sağlar.
+class ItemRepository {
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  // Belirli bir koleksiyondaki HintItem'ları Stream olarak döndürür (Gerçek zamanlı güncelleme)
+  Stream<List<HintItem>> fetchItemsStreamByCategory(String category) {
+    final collectionName = _getCollectionName(category);
+
+    // Hata durumunda koleksiyon adı kontrolü
+    if (collectionName == 'items') {
+      debugPrint(
+        'UYARI: Bilinmeyen kategori ($category). Varsayılan "items" koleksiyonu kullanılıyor.',
+      );
+    }
+
+    // 1. Belirlenen koleksiyona referans
+    final collectionRef = _db.collection(collectionName);
+
+    // 2. Anlık veri akışını (snapshot) dinleme ve HintItem listesine dönüştürme
+    return collectionRef
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            return HintItem.fromFirestore(doc.data(), doc.id);
+          }).toList();
+        })
+        .handleError((e) {
+          // Stream üzerinde hata yönetimi
+          debugPrint('Koleksiyondan veri çekme hatası ($collectionName): $e');
+          return <HintItem>[]; // Hata durumunda boş bir liste akışı
+        });
+  }
+}
+
+// ====================================================
+// 3. RIVERPOD PROVIDERS (Durum Yönetimi)
+// ====================================================
+
+// a) ItemRepository sınıfını sağlayan Provider (Değişmedi)
 final itemRepositoryProvider = Provider((ref) => ItemRepository());
 
-// b) Tüm veriyi asenkron çeken FutureProvider.
-// UI'da (CategorySelectionScreen) yükleniyor, hata ve data durumlarını yönetmek için kullanılır.
-final allItemsProvider = FutureProvider<List<HintItem>>((ref) async {
-  // Repository örneğini alıyoruz
-  final repository = ref.watch(itemRepositoryProvider);
-
-  // Veritabanından tüm veriyi çekiyoruz
-  return repository.fetchAllItems();
-});
-
-// c) Kategoriye göre filtrelenmiş veriyi tutan Family Provider.
-// Bu sağlayıcı, bir kategori adı (String) alarak ilgili kelimeleri döndürür.
-final itemsByCategoryProvider = Provider.family<List<HintItem>, String>((
+// b) Kategoriye göre filtrelenmiş veriyi TAAHMİN EDİLEN koleksiyondan çeken Family Stream Provider.
+// Bu, seçilen kategoriye göre doğru koleksiyondan gerçek zamanlı veri çeker.
+final itemsByCategoryProvider = StreamProvider.family<List<HintItem>, String>((
   ref,
   category,
 ) {
-  // allItemsProvider'dan gelen verinin yüklenmesini bekler.
-  final allItemsAsync = ref.watch(allItemsProvider);
+  // Repository örneğini alıyoruz
+  final repository = ref.watch(itemRepositoryProvider);
 
-  return allItemsAsync.when(
-    data: (items) {
-      // Sadece istenen kategoriye ait öğeleri filtreler ve döndürür.
-      return items.where((item) => item.category == category).toList();
-    },
-    // Veri yüklenirken veya hata oluşursa boş liste döndürülür.
-    loading: () => [],
-    error: (err, stack) => [],
-  );
+  // Repository'deki Stream metodunu çağırarak gerçek zamanlı veri akışını döndürüyoruz.
+  return repository.fetchItemsStreamByCategory(category);
 });
 
-// d) Tüm benzersiz kategori isimlerini bulan Provider
+// c) Tüm benzersiz kategori isimlerini bulan Provider (Eski hali)
+// NOT: Çoklu koleksiyon yapısında, kategorileri çekmek için
+// *TÜM* koleksiyonları taramanız gerekebilir.
+// Ancak pratik bir çözüm olarak, kategorileri sabit bir listede tutmak daha yaygındır.
 final allCategoriesProvider = Provider<List<String>>((ref) {
-  final allItemsAsync = ref.watch(allItemsProvider);
-
-  return allItemsAsync.when(
-    data: (items) {
-      // Tüm öğelerden sadece kategori isimlerini alır ve Set ile benzersizleştirir.
-      return items.map((e) => e.category).toSet().toList();
-    },
-    loading: () => [],
-    error: (err, stack) => [],
-  );
+  // Oyununuzdaki sabit kategori listesini döndürün.
+  // Bu, Firebase'i gereksiz yere sorgulamaktan kaçınır.
+  return const ['Hayvan', 'Şehir', 'Eşya'];
 });
+
+// Artık önceki kodunuzdaki 'allItemsProvider' ve onun Future mantığına ihtiyacımız yok, 
+// çünkü 'itemsByCategoryProvider' direkt olarak doğru koleksiyondan Stream olarak veri çekiyor.
